@@ -42,6 +42,26 @@ impl Matrix2x2 {
         Self::new([[d[0], 0.0], [0.0, d[1]]])
     }
 
+    /// Matrice de rotation 2D d'angle `angle` (radians, sens trigonométrique).
+    ///
+    /// Disponible avec la feature `trig` (utilise `embedded-trig-f32`).
+    /// Pour une rotation, l'inverse est la transposée : inutile d'appeler `inv`.
+    ///
+    /// ```
+    /// use embedded_matrix::Matrix2x2;
+    /// use embedded_trig_f32::consts::FRAC_PI_2;
+    ///
+    /// let r = Matrix2x2::rotation(FRAC_PI_2);
+    /// let p = r * [1.0, 0.0];
+    /// assert!(p[0].abs() < 1e-6 && (p[1] - 1.0).abs() < 1e-6);
+    /// ```
+    #[cfg(feature = "trig")]
+    #[inline]
+    pub fn rotation(angle: f32) -> Self {
+        let (s, c) = embedded_trig_f32::sincos(angle);
+        Self::new([[c, -s], [s, c]])
+    }
+
     // ── Accès ────────────────────────────────────────────────
 
     /// Retourne l'élément à la ligne `row` et colonne `col` (0-indexé).
@@ -121,6 +141,35 @@ impl Matrix2x2 {
     #[inline]
     pub fn trace(&self) -> f32 {
         self.data[0][0] + self.data[1][1]
+    }
+
+    /// Résout le système `A·x = b` (formule de Cramer).
+    ///
+    /// Plus direct que `inv()` suivi d'un produit. Si vous avez plusieurs
+    /// seconds membres pour la même matrice, calculez `inv()` une seule fois.
+    ///
+    /// ```
+    /// use embedded_matrix::Matrix2x2;
+    ///
+    /// let a = Matrix2x2::new([[2.0, 1.0], [1.0, 3.0]]);
+    /// let x = a.solve([3.0, 5.0]).unwrap();
+    /// assert!((x[0] - 0.8).abs() < 1e-6 && (x[1] - 1.4).abs() < 1e-6);
+    /// ```
+    ///
+    /// # Errors
+    /// - [`MatrixError::SingularMatrix`] : même critère que [`inv`](Self::inv).
+    /// - [`MatrixError::NonFiniteValue`] : NaN / ±∞ dans la matrice, dans `b`,
+    ///   ou débordement.
+    pub fn solve(&self, b: [f32; 2]) -> Result<[f32; 2], MatrixError> {
+        let [[a, m], [c, d]] = self.data;
+        let det = a * d - m * c;
+        check_det(det, (a * d).abs() + (m * c).abs())?;
+        let x = [(b[0] * d - m * b[1]) / det, (a * b[1] - c * b[0]) / det];
+        if x[0].is_finite() && x[1].is_finite() {
+            Ok(x)
+        } else {
+            Err(MatrixError::NonFiniteValue)
+        }
     }
 
     /// Compare deux matrices terme à terme avec une tolérance absolue.

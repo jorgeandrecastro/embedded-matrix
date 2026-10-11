@@ -42,6 +42,45 @@ impl Matrix3x3 {
         Self::new([[d[0], 0.0, 0.0], [0.0, d[1], 0.0], [0.0, 0.0, d[2]]])
     }
 
+    /// Rotation 3D autour de l'axe X (radians, règle de la main droite).
+    ///
+    /// Disponible avec la feature `trig` (utilise `embedded-trig-f32`).
+    #[cfg(feature = "trig")]
+    #[inline]
+    pub fn rotation_x(angle: f32) -> Self {
+        let (s, c) = embedded_trig_f32::sincos(angle);
+        Self::new([[1.0, 0.0, 0.0], [0.0, c, -s], [0.0, s, c]])
+    }
+
+    /// Rotation 3D autour de l'axe Y (radians, règle de la main droite).
+    ///
+    /// Disponible avec la feature `trig`.
+    #[cfg(feature = "trig")]
+    #[inline]
+    pub fn rotation_y(angle: f32) -> Self {
+        let (s, c) = embedded_trig_f32::sincos(angle);
+        Self::new([[c, 0.0, s], [0.0, 1.0, 0.0], [-s, 0.0, c]])
+    }
+
+    /// Rotation 3D autour de l'axe Z (radians, règle de la main droite).
+    ///
+    /// Disponible avec la feature `trig`.
+    ///
+    /// ```
+    /// use embedded_matrix::Matrix3x3;
+    /// use embedded_trig_f32::consts::FRAC_PI_2;
+    ///
+    /// let r = Matrix3x3::rotation_z(FRAC_PI_2);
+    /// let p = r * [1.0, 0.0, 5.0];
+    /// assert!(p[0].abs() < 1e-6 && (p[1] - 1.0).abs() < 1e-6 && p[2] == 5.0);
+    /// ```
+    #[cfg(feature = "trig")]
+    #[inline]
+    pub fn rotation_z(angle: f32) -> Self {
+        let (s, c) = embedded_trig_f32::sincos(angle);
+        Self::new([[c, -s, 0.0], [s, c, 0.0], [0.0, 0.0, 1.0]])
+    }
+
     // ── Accès ────────────────────────────────────────────────
 
     /// Retourne l'élément à la ligne `row` et colonne `col` (0-indexé).
@@ -123,6 +162,35 @@ impl Matrix3x3 {
     #[inline]
     pub fn trace(&self) -> f32 {
         self.data[0][0] + self.data[1][1] + self.data[2][2]
+    }
+
+    /// Résout le système `A·x = b`.
+    ///
+    /// Calculé comme `A⁻¹·b` : même coût et même critère de singularité que
+    /// [`inv`](Self::inv). Si vous avez plusieurs seconds membres pour la même
+    /// matrice, calculez `inv()` une seule fois.
+    ///
+    /// ```
+    /// use embedded_matrix::Matrix3x3;
+    ///
+    /// let a = Matrix3x3::new([[1.0, 2.0, 3.0], [0.0, 1.0, 4.0], [5.0, 6.0, 0.0]]);
+    /// let x = a.solve([1.0, 2.0, 3.0]).unwrap();
+    /// assert!((x[0] - 27.0).abs() < 1e-3);
+    /// assert!((x[1] + 22.0).abs() < 1e-3);
+    /// assert!((x[2] - 6.0).abs() < 1e-3);
+    /// ```
+    ///
+    /// # Errors
+    /// - [`MatrixError::SingularMatrix`] : même critère que [`inv`](Self::inv).
+    /// - [`MatrixError::NonFiniteValue`] : NaN / ±∞ dans la matrice, dans `b`,
+    ///   ou débordement.
+    pub fn solve(&self, b: [f32; 3]) -> Result<[f32; 3], MatrixError> {
+        let x = self.inv()?.mul_vec(b);
+        if x.iter().all(|v| v.is_finite()) {
+            Ok(x)
+        } else {
+            Err(MatrixError::NonFiniteValue)
+        }
     }
 
     /// Compare deux matrices terme à terme avec une tolérance absolue.

@@ -3,5 +3,23 @@
 version = 4
 
 [[package]]
-name = "embedded-matrix"
+name = "embedded-f32-sqrt"
 version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2cb34de8cdbd96b4cdd81ebf6d45946f56cbf5c5e98b127e833af8a9628d015d"
+
+[[package]]
+name = "embedded-matrix"
+version = "0.3.0"
+dependencies = [
+ "embedded-trig-f32",
+]
+
+[[package]]
+name = "embedded-trig-f32"
+version = "0.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9dcd665dfb8d98c8eaaf0544edf5cf1fa81cd1035a2037f0971437f1a8221e44"
+dependencies = [
+ "embedded-f32-sqrt",
+]

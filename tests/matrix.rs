@@ -429,3 +429,138 @@ fn error_display_is_not_empty() {
     assert!(!MatrixError::SingularMatrix.to_string().is_empty());
     assert!(!MatrixError::NonFiniteValue.to_string().is_empty());
 }
+
+// ═════════════════════════════════════════════════════════════
+//  solve(b) : résolution de A·x = b
+// ═════════════════════════════════════════════════════════════
+
+#[test]
+fn m2_solve_known() {
+    let a = Matrix2x2::new([[2.0, 1.0], [1.0, 3.0]]);
+    let x = a.solve([3.0, 5.0]).unwrap();
+    assert!(close(x[0], 0.8, 1e-6) && close(x[1], 1.4, 1e-6), "{x:?}");
+}
+
+#[test]
+fn m3_solve_known() {
+    let a = Matrix3x3::new(M3_A);
+    let x = a.solve([1.0, 2.0, 3.0]).unwrap();
+    assert!(close(x[0], 27.0, 1e-3) && close(x[1], -22.0, 1e-3) && close(x[2], 6.0, 1e-3), "{x:?}");
+}
+
+#[test]
+fn solve_errors() {
+    assert_eq!(
+        Matrix2x2::new([[1.0, 2.0], [2.0, 4.0]]).solve([1.0, 1.0]),
+        Err(MatrixError::SingularMatrix)
+    );
+    assert_eq!(
+        Matrix3x3::new([[1.0, 2.0, 3.0], [4.0, 5.0, 6.0], [7.0, 8.0, 9.0]]).solve([1.0, 1.0, 1.0]),
+        Err(MatrixError::SingularMatrix)
+    );
+    assert_eq!(
+        Matrix2x2::identity().solve([f32::NAN, 0.0]),
+        Err(MatrixError::NonFiniteValue)
+    );
+    assert_eq!(
+        Matrix3x3::identity().solve([0.0, f32::INFINITY, 0.0]),
+        Err(MatrixError::NonFiniteValue)
+    );
+}
+
+#[test]
+fn solve_roundtrip_and_matches_inverse() {
+    let mut rng = Lcg(31337);
+    for _ in 0..500 {
+        let m = rng.m2();
+        let b = [rng.next(), rng.next()];
+        let x = m.solve(b).unwrap();
+        let back = m * x;
+        assert!(close(back[0], b[0], 1e-5) && close(back[1], b[1], 1e-5));
+        let via_inv = m.inv().unwrap() * b;
+        assert!(close(x[0], via_inv[0], 1e-5) && close(x[1], via_inv[1], 1e-5));
+
+        let m = rng.m3();
+        let b = [rng.next(), rng.next(), rng.next()];
+        let x = m.solve(b).unwrap();
+        let back = m * x;
+        for k in 0..3 {
+            assert!(close(back[k], b[k], 1e-5), "{m:?}");
+        }
+    }
+}
+
+// ═════════════════════════════════════════════════════════════
+//  Rotations (feature `trig`) : cargo test --features trig
+// ═════════════════════════════════════════════════════════════
+
+#[cfg(feature = "trig")]
+mod rotations {
+    use super::*;
+    use embedded_trig_f32::consts::{FRAC_PI_2, PI};
+
+    #[test]
+    fn rotation2_basic() {
+        let p = Matrix2x2::rotation(FRAC_PI_2) * [1.0, 0.0];
+        assert!(close(p[0], 0.0, 1e-6) && close(p[1], 1.0, 1e-6));
+        assert!(Matrix2x2::rotation(0.0).approx_eq(&Matrix2x2::identity(), 1e-7));
+        let half_turn = Matrix2x2::rotation(PI) * [1.0, 0.0];
+        assert!(close(half_turn[0], -1.0, 1e-6) && close(half_turn[1], 0.0, 1e-6));
+    }
+
+    #[test]
+    fn rotation2_properties() {
+        for deg in (-720..=720).step_by(7) {
+            let a = (deg as f32).to_radians();
+            let r = Matrix2x2::rotation(a);
+            assert!(close(r.det(), 1.0, 1e-5), "θ = {deg}°");
+            assert!((r * r.transpose()).approx_eq(&Matrix2x2::identity(), 1e-5));
+            assert!(r.inv().unwrap().approx_eq(&r.transpose(), 1e-5));
+        }
+    }
+
+    #[test]
+    fn rotation2_composition() {
+        let (a, b) = (0.7f32, -1.9f32);
+        let lhs = Matrix2x2::rotation(a) * Matrix2x2::rotation(b);
+        assert!(lhs.approx_eq(&Matrix2x2::rotation(a + b), 1e-5));
+    }
+
+    #[test]
+    fn rotation3_axes_fixed_and_orthonormal() {
+        for deg in (-360..=360).step_by(11) {
+            let a = (deg as f32).to_radians();
+            let (rx, ry, rz) = (Matrix3x3::rotation_x(a), Matrix3x3::rotation_y(a), Matrix3x3::rotation_z(a));
+
+            // L'axe de rotation reste invariant.
+            assert_eq!(rx * [1.0, 0.0, 0.0], [1.0, 0.0, 0.0]);
+            assert_eq!(ry * [0.0, 1.0, 0.0], [0.0, 1.0, 0.0]);
+            assert_eq!(rz * [0.0, 0.0, 1.0], [0.0, 0.0, 1.0]);
+
+            for r in [rx, ry, rz] {
+                assert!(close(r.det(), 1.0, 1e-5), "θ = {deg}°");
+                assert!((r * r.transpose()).approx_eq(&Matrix3x3::identity(), 1e-5));
+            }
+        }
+    }
+
+    #[test]
+    fn rotation3_right_hand_rule() {
+        // Z : X → Y ; X : Y → Z ; Y : Z → X.
+        let z = Matrix3x3::rotation_z(FRAC_PI_2) * [1.0, 0.0, 0.0];
+        let x = Matrix3x3::rotation_x(FRAC_PI_2) * [0.0, 1.0, 0.0];
+        let y = Matrix3x3::rotation_y(FRAC_PI_2) * [0.0, 0.0, 1.0];
+        assert!(close(z[1], 1.0, 1e-6) && close(x[2], 1.0, 1e-6) && close(y[0], 1.0, 1e-6));
+    }
+
+    #[test]
+    fn rotation3_z_matches_2d_block() {
+        let a = 1.234f32;
+        let (r2, r3) = (Matrix2x2::rotation(a), Matrix3x3::rotation_z(a));
+        for i in 0..2 {
+            for j in 0..2 {
+                assert_eq!(r2.get(i, j), r3.get(i, j));
+            }
+        }
+    }
+}

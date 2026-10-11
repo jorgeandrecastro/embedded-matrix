@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.3.0] - 2026-10-11
+
+### Ajouts
+- `solve(b)` : résolution de `A·x = b` en 2×2 et 3×3, même critère de singularité que `inv`.
+- Feature Cargo optionnelle `trig` (dépendance à `embedded-trig-f32`) : `Matrix2x2::rotation`, `Matrix3x3::rotation_x`, `rotation_y`, `rotation_z`. Sans la feature, aucune dépendance.
+- Tests de `solve` et, avec la feature `trig`, des rotations (déterminant 1, orthogonalité, composition, règle de la main droite).
+- Documentation : section « Pistes futures » (taille n, LU, Cholesky, `Vector<N>`, `#[must_use]`, benchmarks), non implémentées.
+
 ## [0.2.0] - 2026-10-11
 
 ### Corrections

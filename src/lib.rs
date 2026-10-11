@@ -39,6 +39,44 @@
 //! }
 //! ```
 //!
+//! ## Résolution de systèmes
+//!
+//! `solve(b)` résout `A·x = b` et renvoie directement `x` :
+//!
+//! ```rust
+//! use embedded_matrix::Matrix2x2;
+//!
+//! let a = Matrix2x2::new([[2.0, 1.0], [1.0, 3.0]]);
+//! let x = a.solve([3.0, 5.0]).unwrap(); // x = [0.8, 1.4]
+//! assert!((x[0] - 0.8).abs() < 1e-6);
+//! ```
+//!
+//! ## Feature optionnelle : `trig`
+//!
+//! ```toml
+//! embedded-matrix = { version = "0.3", features = ["trig"] }
+//! ```
+//!
+//! Active la dépendance à `embedded-trig-f32` et ajoute les constructeurs de
+//! rotation : `Matrix2x2::rotation(angle)`, `Matrix3x3::rotation_x / _y / _z(angle)`
+//! (angles en radians, règle de la main droite). Sans la feature, la crate
+//! n'a **aucune dépendance**.
+//!
+//! ## Pistes futures (non implémentées)
+//!
+//! Ces idées ne font pas partie de l'API actuelle ; elles sont notées ici
+//! pour la suite :
+//!
+//! - **Taille quelconque** : `Matrix<const R: usize, const C: usize>` sur la
+//!   pile (alias `Matrix2x2 = Matrix<2, 2>`), produit de matrices non carrées.
+//! - **Décomposition LU** avec pivot partiel pour `det`, `inv` et `solve`
+//!   en taille n.
+//! - **Cholesky** pour les matrices symétriques définies positives
+//!   (matrices de covariance).
+//! - **Type `Vector<N>`** : produit scalaire, produit vectoriel 3D, norme.
+//! - **`#[must_use]`** sur les opérations arithmétiques.
+//! - **Benchmarks en cycles** (compteur DWT) et CI de compilation embarquée.
+//!
 //! ## Détection des matrices singulières
 //!
 //! `inv` compare `|det|` à une borne **relative** à la taille des termes du

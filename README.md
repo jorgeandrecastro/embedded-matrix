@@ -6,11 +6,11 @@ Matrices 2×2 et 3×3 en `f32` pour systèmes embarqués `no_std`.
 [![License](https://img.shields.io/crates/l/embedded-matrix.svg)](LICENSE)
 [![Docs.rs](https://docs.rs/embedded-matrix/badge.svg)](https://docs.rs/embedded-matrix/)
 
-La version 0.2 corrige le seuil de détection des matrices singulières (désormais **relatif à l'échelle**), ajoute `NonFiniteValue` aux erreurs, le produit matrice × vecteur et plusieurs opérateurs. Voir le [CHANGELOG](CHANGELOG.md).
+La version 0.3 ajoute `solve` (résolution de `A·x = b`) et, derrière la feature optionnelle `trig`, les constructeurs de rotation. La 0.2 avait corrigé le seuil de détection des matrices singulières (désormais **relatif à l'échelle**), ajouté `NonFiniteValue` aux erreurs, le produit matrice × vecteur et plusieurs opérateurs. Voir le [CHANGELOG](CHANGELOG.md).
 
 ## Points forts
 
-- **Zéro dépendance** : pas de libm, pas de micromath, pas de bibliothèque C, pas d'allocation.
+- **Zéro dépendance par défaut** : pas de libm, pas de micromath, pas de bibliothèque C, pas d'allocation.
 - **Sécurité** : `#![forbid(unsafe_code)]` et inversion via `Result<_, MatrixError>`.
 - **Portabilité** : fonctionne sur Cortex-M0+, M4F, M33, RISC-V et toute cible `no_std`.
 - **Opérateurs natifs** : `a * b`, `a + b`, `a - b`, `a * 2.0`, `2.0 * a`, `-a`, `a * [x, y, z]`, `+=`, `-=`, `*=`.
@@ -20,10 +20,31 @@ La version 0.2 corrige le seuil de détection des matrices singulières (désorm
 
 ```toml
 [dependencies]
-embedded-matrix = "0.2"
+embedded-matrix = "0.3"
 ```
 
 Version minimale de Rust : **1.85** (édition 2024).
+
+### Feature optionnelle `trig`
+
+```toml
+[dependencies]
+embedded-matrix = { version = "0.3", features = ["trig"] }
+```
+
+Active la dépendance à [`embedded-trig-f32`](https://crates.io/crates/embedded-trig-f32) et les constructeurs de rotation (angles en radians, règle de la main droite). **Sans cette feature, la crate n'a aucune dépendance.**
+
+```rust
+use embedded_matrix::{Matrix2x2, Matrix3x3};
+
+let r = Matrix2x2::rotation(0.5);
+let p = r * [1.0, 0.0];
+
+let rz = Matrix3x3::rotation_z(0.5);
+let q = rz * [1.0, 0.0, 5.0];   // z reste inchangé
+```
+
+Pour une rotation, l'inverse est la transposée : `r.transpose()` suffit, inutile d'appeler `inv()`.
 
 ## Opérations disponibles
 
@@ -38,6 +59,9 @@ Version minimale de Rust : **1.85** (édition 2024).
 | `mul(&m)`            | `a * b`, `*=`   | Produit matriciel                                       |
 | `scale(f32)`         | `a * 2.0`, `2.0 * a`, `*= 2.0` | Multiplication par un scalaire           |
 | `mul_vec([f32; N])`  | `a * v`         | Produit matrice × vecteur colonne                       |
+| `solve([f32; N])`    | —               | Résout `A·x = b` → `Result<[f32; N], MatrixError>`      |
+| `rotation(angle)` ¹  | —               | Rotation 2D (`Matrix2x2`)                               |
+| `rotation_x/y/z(angle)` ¹ | —          | Rotations 3D (`Matrix3x3`)                              |
 | —                    | `-a`            | Négation terme à terme                                  |
 | `transpose()`        | —               | Transposée                                              |
 | `det()`              | —               | Déterminant                                             |
@@ -46,6 +70,8 @@ Version minimale de Rust : **1.85** (édition 2024).
 | `get(row, col)`      | `m[(row, col)]` | Accès à un élément (panique si hors limites)            |
 | `as_array()`         | `Into<[[f32; N]; N]>` | Accès aux données row-major                       |
 | `approx_eq(&m, tol)` | —               | Égalité à une tolérance absolue près                    |
+
+¹ Disponible avec la feature `trig` (voir plus haut).
 
 ### Erreurs
 
@@ -106,22 +132,25 @@ let det   = r.det();    // 4.0
 let x = r * [1.0, 0.0, -1.0]; // matrice × vecteur
 ```
 
-### Rotation 2D avec embedded-trig-f32
+### Résoudre un système `A·x = b`
 
 ```rust
-use embedded_matrix::Matrix2x2;
-use embedded_trig_f32::sincos;
+use embedded_matrix::{Matrix3x3, MatrixError};
 
-fn rotation(angle: f32) -> Matrix2x2 {
-    let (s, c) = sincos(angle);
-    Matrix2x2::new([[c, -s], [s, c]])
+let a = Matrix3x3::new([
+    [1.0, 2.0, 3.0],
+    [0.0, 1.0, 4.0],
+    [5.0, 6.0, 0.0],
+]);
+
+match a.solve([1.0, 2.0, 3.0]) {
+    Ok(x) => { /* x ≈ [27.0, -22.0, 6.0] */ let _ = x; }
+    Err(MatrixError::SingularMatrix) => { /* pas de solution unique */ }
+    Err(_) => { /* NaN / infini */ }
 }
-
-// Pour une rotation, l'inverse est la transposée : inutile d'appeler inv().
-let r = rotation(0.5);
-let back = r.transpose();
-let p = r * [1.0, 0.0];
 ```
+
+`solve` applique le même critère de singularité que `inv()`. En 2×2 il utilise la formule de Cramer directement ; en 3×3 il calcule `A⁻¹·b` (même coût que `inv`). Pour plusieurs seconds membres avec la même matrice, appelez `inv()` une seule fois.
 
 ### Exemple embarqué : norme de Frobenius avec embedded-f32-sqrt (RP2350)
 
@@ -167,10 +196,22 @@ Ce test ne mesure pas le conditionnement : une matrice inversible mais très mal
 ## Tests
 
 ```bash
-cargo test
+cargo test                    # tests et doc-tests, sans dépendance
+cargo test --features trig    # + rotations
 ```
 
-La suite (`tests/matrix.rs`) vérifie les valeurs connues, la robustesse (échelles, NaN, ∞, matrice nulle) et des propriétés sur des matrices pseudo-aléatoires déterministes : `A·A⁻¹ ≈ I`, `det(AB) = det(A)·det(B)`, `(AB)ᵀ = BᵀAᵀ`, rotations 2×2.
+La suite (`tests/matrix.rs`) vérifie les valeurs connues, la robustesse (échelles, NaN, ∞, matrice nulle) et des propriétés sur des matrices pseudo-aléatoires déterministes : `A·A⁻¹ ≈ I`, `det(AB) = det(A)·det(B)`, `(AB)ᵀ = BᵀAᵀ`, `solve`, et (avec `trig`) les propriétés des rotations : déterminant 1, orthogonalité, composition, règle de la main droite.
+
+## Pistes futures (non implémentées)
+
+Volontairement hors de l'API actuelle, pour garder une crate simple et prévisible :
+
+- **Taille quelconque** : `Matrix<const R: usize, const C: usize>` sur la pile (alias `Matrix2x2 = Matrix<2, 2>`), avec produit de matrices non carrées vérifié à la compilation.
+- **Décomposition LU** avec pivot partiel pour `det`, `inv` et `solve` en taille n.
+- **Cholesky** pour les matrices symétriques définies positives (matrices de covariance, filtres de Kalman).
+- **Type `Vector<N>`** : produit scalaire, produit vectoriel 3D, norme (via `embedded-f32-sqrt`).
+- **`#[must_use]`** sur les opérations arithmétiques.
+- **Benchmarks en cycles** (compteur DWT sur Cortex-M) et CI de compilation sur cible embarquée.
 
 ## Licence
 
