@@ -6,43 +6,62 @@ Matrices 2×2 et 3×3 en `f32` pour systèmes embarqués `no_std`.
 [![License](https://img.shields.io/crates/l/embedded-matrix.svg)](LICENSE)
 [![Docs.rs](https://docs.rs/embedded-matrix/badge.svg)](https://docs.rs/embedded-matrix/)
 
+La version 0.2 corrige le seuil de détection des matrices singulières (désormais **relatif à l'échelle**), ajoute `NonFiniteValue` aux erreurs, le produit matrice × vecteur et plusieurs opérateurs. Voir le [CHANGELOG](CHANGELOG.md).
+
 ## Points forts
 
-- **Zéro dépendance** — pas de libm, pas de micromath, pas de bibliothèque C.
-- **Sécurité maximale** — `#![forbid(unsafe_code)]` et gestion robuste via `Result`.
-- **Portabilité totale** — fonctionne sur Cortex-M0+, M4F, M33, RISC-V et tout autre `no_std`.
-- **Opérateurs natifs** — `a * b`, `a + b`, `a - b`, `a * 2.0`, `-a` grâce aux traits `core::ops`.
+- **Zéro dépendance** : pas de libm, pas de micromath, pas de bibliothèque C, pas d'allocation.
+- **Sécurité** : `#![forbid(unsafe_code)]` et inversion via `Result<_, MatrixError>`.
+- **Portabilité** : fonctionne sur Cortex-M0+, M4F, M33, RISC-V et toute cible `no_std`.
+- **Opérateurs natifs** : `a * b`, `a + b`, `a - b`, `a * 2.0`, `2.0 * a`, `-a`, `a * [x, y, z]`, `+=`, `-=`, `*=`.
+- **Inversion robuste** : seuil de singularité relatif, rejet explicite de NaN et ±∞.
 
 ## Utilisation
 
 ```toml
 [dependencies]
-embedded-matrix = "0.1.0"
+embedded-matrix = "0.2"
 ```
+
+Version minimale de Rust : **1.85** (édition 2024).
 
 ## Opérations disponibles
 
-| Méthode | Opérateur | Description |
-|---|---|---|
-| `new(data)` | — | Construit depuis un tableau row-major |
-| `identity()` | — | Matrice identité |
-| `zero()` | — | Matrice nulle |
-| `add(&m)` | `a + b` | Addition terme à terme |
-| `sub(&m)` | `a - b` | Soustraction terme à terme |
-| `mul(&m)` | `a * b` | Produit matriciel |
-| `scale(f32)` | `a * 2.0` | Multiplication par un scalaire |
-| `transpose()` | — | Transposée |
-| `det()` | — | Déterminant |
-| `trace()` | — | Trace (somme de la diagonale) |
-| `inv()` | — | Inverse → `Result<M, MatrixError>` |
-| `get(row, col)` | — | Accès à un élément |
+| Méthode              | Opérateur       | Description                                             |
+|----------------------|-----------------|---------------------------------------------------------|
+| `new(data)`          | `From<[[f32; N]; N]>` | Construit depuis un tableau row-major             |
+| `identity()`         | —               | Matrice identité                                        |
+| `zero()`             | `Default`       | Matrice nulle                                           |
+| `from_diagonal(d)`   | —               | Matrice diagonale                                       |
+| `add(&m)`            | `a + b`, `+=`   | Addition terme à terme                                  |
+| `sub(&m)`            | `a - b`, `-=`   | Soustraction terme à terme                              |
+| `mul(&m)`            | `a * b`, `*=`   | Produit matriciel                                       |
+| `scale(f32)`         | `a * 2.0`, `2.0 * a`, `*= 2.0` | Multiplication par un scalaire           |
+| `mul_vec([f32; N])`  | `a * v`         | Produit matrice × vecteur colonne                       |
+| —                    | `-a`            | Négation terme à terme                                  |
+| `transpose()`        | —               | Transposée                                              |
+| `det()`              | —               | Déterminant                                             |
+| `trace()`            | —               | Trace (somme de la diagonale)                           |
+| `inv()`              | —               | Inverse → `Result<M, MatrixError>`                      |
+| `get(row, col)`      | `m[(row, col)]` | Accès à un élément (panique si hors limites)            |
+| `as_array()`         | `Into<[[f32; N]; N]>` | Accès aux données row-major                       |
+| `approx_eq(&m, tol)` | —               | Égalité à une tolérance absolue près                    |
+
+### Erreurs
+
+| Variante                       | Cas                                                              |
+|--------------------------------|------------------------------------------------------------------|
+| `MatrixError::SingularMatrix`  | Déterminant nul ou négligeable devant l'erreur d'arrondi         |
+| `MatrixError::NonFiniteValue`  | La matrice contient NaN ou ±∞, ou le calcul a débordé            |
+
+`MatrixError` est `#[non_exhaustive]` : prévoyez un bras `Err(_)` dans vos `match`. Il implémente `Display` et `core::error::Error`.
 
 ## Exemples
 
 ### Syntaxe opérateurs
 
 ```rust
-use embedded_matrix::{Matrix2x2, Matrix3x3};
+use embedded_matrix::Matrix2x2;
 
 let a = Matrix2x2::new([[1.0, 2.0], [3.0, 4.0]]);
 let b = Matrix2x2::identity();
@@ -51,7 +70,13 @@ let c = a * b;      // produit matriciel
 let d = a + b;      // addition terme à terme
 let e = a - b;      // soustraction terme à terme
 let f = a * 2.0;    // scalaire
-let g = -a;         // négation
+let g = 2.0 * a;    // scalaire à gauche
+let h = -a;         // négation
+let v = a * [1.0, 1.0]; // matrice × vecteur → [3.0, 7.0]
+
+let mut m = a;
+m += b;
+m *= 0.5;
 ```
 
 ### Utilisation complète
@@ -66,6 +91,7 @@ let det = a.det();   // -2.0
 match a.inv() {
     Ok(inv) => { let _ = a * inv; /* ≈ identité */ }
     Err(MatrixError::SingularMatrix) => { /* matrice singulière */ }
+    Err(_) => { /* NaN / infini */ }
 }
 
 // Matrice 3×3
@@ -77,9 +103,27 @@ let r = Matrix3x3::new([
 let inv = r.inv().unwrap();
 let trace = r.trace();  // 6.0
 let det   = r.det();    // 4.0
+let x = r * [1.0, 0.0, -1.0]; // matrice × vecteur
 ```
 
-### Exemple embarqué norme de Frobenius avec embedded-f32-sqrt sur RP2350
+### Rotation 2D avec embedded-trig-f32
+
+```rust
+use embedded_matrix::Matrix2x2;
+use embedded_trig_f32::sincos;
+
+fn rotation(angle: f32) -> Matrix2x2 {
+    let (s, c) = sincos(angle);
+    Matrix2x2::new([[c, -s], [s, c]])
+}
+
+// Pour une rotation, l'inverse est la transposée : inutile d'appeler inv().
+let r = rotation(0.5);
+let back = r.transpose();
+let p = r * [1.0, 0.0];
+```
+
+### Exemple embarqué : norme de Frobenius avec embedded-f32-sqrt (RP2350)
 
 ```rust
 use embedded_matrix::Matrix3x3;
@@ -87,9 +131,8 @@ use embedded_f32_sqrt::sqrt;
 
 // Norme de Frobenius : sqrt(Σ aij²)
 fn frobenius_norm(m: &Matrix3x3) -> f32 {
-    let arr = m.as_array();
     let mut sum = 0.0f32;
-    for row in arr {
+    for row in m.as_array() {
         for &v in row {
             sum += v * v;
         }
@@ -100,11 +143,34 @@ fn frobenius_norm(m: &Matrix3x3) -> f32 {
 
 ## Algorithmes
 
-`Matrix2x2` inversion par formule directe : `1/det * [[d, -b], [-c, a]]`.
+- **`Matrix2x2`** : inversion par formule directe, `1/det * [[d, -b], [-c, a]]`.
+- **`Matrix3x3`** : déterminant par développement selon la première ligne (cofacteurs) ; inversion par la méthode des cofacteurs (matrice adjointe divisée par le déterminant), en réutilisant les cofacteurs de la première ligne pour le déterminant.
 
-`Matrix3x3`  déterminant par la règle de Sarrus ; inversion par la méthode des cofacteurs (matrice adjointe divisée par le déterminant).
+### Détection des matrices singulières
 
-Le seuil de singularité est `|det| < 1e-7`, choisi pour correspondre à la précision du type `f32`.
+Le seuil est **relatif** : une matrice est déclarée singulière si
+
+```
+|det| <= 8 · f32::EPSILON · B
+```
+
+où `B` est la somme des valeurs absolues des termes qui composent le déterminant (`|ad| + |bc|` en 2×2, les six produits du développement en 3×3). `B` donne l'échelle de l'erreur d'arrondi attendue sur `det`.
+
+Conséquences :
+
+- `1e-4 · I` reste inversible (l'ancien seuil absolu `|det| < 1e-7` la rejetait à tort).
+- Une matrice à grands coefficients dont le déterminant n'est que du bruit d'arrondi est rejetée.
+- La matrice nulle est singulière.
+
+Ce test ne mesure pas le conditionnement : une matrice inversible mais très mal conditionnée donnera un inverse peu précis.
+
+## Tests
+
+```bash
+cargo test
+```
+
+La suite (`tests/matrix.rs`) vérifie les valeurs connues, la robustesse (échelles, NaN, ∞, matrice nulle) et des propriétés sur des matrices pseudo-aléatoires déterministes : `A·A⁻¹ ≈ I`, `det(AB) = det(A)·det(B)`, `(AB)ᵀ = BᵀAᵀ`, rotations 2×2.
 
 ## Licence
 
