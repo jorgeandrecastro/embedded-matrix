@@ -1,14 +1,14 @@
 use core::fmt;
 
-/// Erreur retournée lors d'une opération invalide sur une matrice.
+/// Error returned when a matrix operation is invalid.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 #[non_exhaustive]
 pub enum MatrixError {
-    /// La matrice est singulière (déterminant nul ou noyé dans l'erreur
-    /// d'arrondi) : inversion ou résolution (`inv`, `solve`) impossible.
+    /// The matrix is singular (its determinant is zero or dominated by
+    /// rounding error): inversion or solving (`inv`, `solve`) is impossible.
     SingularMatrix,
-    /// La matrice (ou le second membre de `solve`) contient NaN ou ±∞,
-    /// ou le calcul a débordé.
+    /// The matrix (or the right-hand side of `solve`) contains NaN or ±∞,
+    /// or the calculation overflowed.
     NonFiniteValue,
 }
 

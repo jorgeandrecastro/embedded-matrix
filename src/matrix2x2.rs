@@ -1,7 +1,7 @@
 use crate::{check_det, MatrixError};
 use core::ops::{Add, AddAssign, Index, Mul, MulAssign, Neg, Sub, SubAssign};
 
-/// Matrice 2×2 en `f32`, stockée en row-major.
+/// A 2×2 `f32` matrix stored in row-major order.
 ///
 /// ```
 /// use embedded_matrix::Matrix2x2;
@@ -16,36 +16,36 @@ pub struct Matrix2x2 {
 }
 
 impl Matrix2x2 {
-    // ── Constructeurs ────────────────────────────────────────
+    // ── Constructors ─────────────────────────────────────────
 
-    /// Crée une matrice à partir d'un tableau row-major.
+    /// Creates a matrix from a row-major array.
     #[inline]
     pub const fn new(data: [[f32; 2]; 2]) -> Self {
         Self { data }
     }
 
-    /// Matrice identité.
+    /// Identity matrix.
     #[inline]
     pub const fn identity() -> Self {
         Self::new([[1.0, 0.0], [0.0, 1.0]])
     }
 
-    /// Matrice nulle.
+    /// Zero matrix.
     #[inline]
     pub const fn zero() -> Self {
         Self::new([[0.0; 2]; 2])
     }
 
-    /// Matrice diagonale.
+    /// Diagonal matrix.
     #[inline]
     pub const fn from_diagonal(d: [f32; 2]) -> Self {
         Self::new([[d[0], 0.0], [0.0, d[1]]])
     }
 
-    /// Matrice de rotation 2D d'angle `angle` (radians, sens trigonométrique).
+    /// 2D rotation matrix for `angle` (radians, counterclockwise).
     ///
-    /// Disponible avec la feature `trig` (utilise `embedded-trig-f32`).
-    /// Pour une rotation, l'inverse est la transposée : inutile d'appeler `inv`.
+    /// Available with the `trig` feature (uses `embedded-trig-f32`).
+    /// For a rotation, the inverse is the transpose: there is no need to call `inv`.
     ///
     /// ```
     /// use embedded_matrix::Matrix2x2;
@@ -62,26 +62,26 @@ impl Matrix2x2 {
         Self::new([[c, -s], [s, c]])
     }
 
-    // ── Accès ────────────────────────────────────────────────
+    // ── Access ───────────────────────────────────────────────
 
-    /// Retourne l'élément à la ligne `row` et colonne `col` (0-indexé).
+    /// Returns the element at row `row` and column `col` (zero-indexed).
     ///
     /// # Panics
-    /// Panique si `row` ou `col` vaut 2 ou plus.
+    /// Panics if `row` or `col` is 2 or greater.
     #[inline]
     pub fn get(&self, row: usize, col: usize) -> f32 {
         self.data[row][col]
     }
 
-    /// Donne accès aux données brutes row-major.
+    /// Provides access to the raw row-major data.
     #[inline]
     pub fn as_array(&self) -> &[[f32; 2]; 2] {
         &self.data
     }
 
-    // ── Opérations arithmétiques ─────────────────────────────
+    // ── Arithmetic operations ────────────────────────────────
 
-    /// Addition terme à terme.
+    /// Element-wise addition.
     #[inline]
     #[allow(clippy::should_implement_trait)]
     pub fn add(&self, rhs: &Self) -> Self {
@@ -89,7 +89,7 @@ impl Matrix2x2 {
         Self::new(core::array::from_fn(|i| core::array::from_fn(|j| a[i][j] + b[i][j])))
     }
 
-    /// Soustraction terme à terme.
+    /// Element-wise subtraction.
     #[inline]
     #[allow(clippy::should_implement_trait)]
     pub fn sub(&self, rhs: &Self) -> Self {
@@ -97,7 +97,7 @@ impl Matrix2x2 {
         Self::new(core::array::from_fn(|i| core::array::from_fn(|j| a[i][j] - b[i][j])))
     }
 
-    /// Produit matriciel standard.
+    /// Standard matrix multiplication.
     #[inline]
     #[allow(clippy::should_implement_trait)]
     pub fn mul(&self, rhs: &Self) -> Self {
@@ -107,46 +107,46 @@ impl Matrix2x2 {
         }))
     }
 
-    /// Multiplication par un scalaire.
+    /// Scalar multiplication.
     #[inline]
     pub fn scale(&self, s: f32) -> Self {
         let a = &self.data;
         Self::new(core::array::from_fn(|i| core::array::from_fn(|j| a[i][j] * s)))
     }
 
-    /// Produit matrice × vecteur colonne.
+    /// Matrix × column vector product.
     #[inline]
     pub fn mul_vec(&self, v: [f32; 2]) -> [f32; 2] {
         let a = &self.data;
         [a[0][0] * v[0] + a[0][1] * v[1], a[1][0] * v[0] + a[1][1] * v[1]]
     }
 
-    // ── Propriétés ───────────────────────────────────────────
+    // ── Properties ───────────────────────────────────────────
 
-    /// Transposée.
+    /// Transpose.
     #[inline]
     pub fn transpose(&self) -> Self {
         let a = &self.data;
         Self::new([[a[0][0], a[1][0]], [a[0][1], a[1][1]]])
     }
 
-    /// Déterminant : `ad - bc`.
+    /// Determinant: `ad - bc`.
     #[inline]
     pub fn det(&self) -> f32 {
         let a = &self.data;
         a[0][0] * a[1][1] - a[0][1] * a[1][0]
     }
 
-    /// Trace (somme des éléments diagonaux).
+    /// Trace (sum of the diagonal elements).
     #[inline]
     pub fn trace(&self) -> f32 {
         self.data[0][0] + self.data[1][1]
     }
 
-    /// Résout le système `A·x = b` (formule de Cramer).
+    /// Solves the system `A·x = b` (Cramer's rule).
     ///
-    /// Plus direct que `inv()` suivi d'un produit. Si vous avez plusieurs
-    /// seconds membres pour la même matrice, calculez `inv()` une seule fois.
+    /// More direct than `inv()` followed by a multiplication. For multiple
+    /// right-hand sides with the same matrix, compute `inv()` only once.
     ///
     /// ```
     /// use embedded_matrix::Matrix2x2;
@@ -157,9 +157,9 @@ impl Matrix2x2 {
     /// ```
     ///
     /// # Errors
-    /// - [`MatrixError::SingularMatrix`] : même critère que [`inv`](Self::inv).
-    /// - [`MatrixError::NonFiniteValue`] : NaN / ±∞ dans la matrice, dans `b`,
-    ///   ou débordement.
+    /// - [`MatrixError::SingularMatrix`]: same criterion as [`inv`](Self::inv).
+    /// - [`MatrixError::NonFiniteValue`]: NaN / ±∞ in the matrix or `b`,
+    ///   or overflow.
     pub fn solve(&self, b: [f32; 2]) -> Result<[f32; 2], MatrixError> {
         let [[a, m], [c, d]] = self.data;
         let det = a * d - m * c;
@@ -172,21 +172,21 @@ impl Matrix2x2 {
         }
     }
 
-    /// Compare deux matrices terme à terme avec une tolérance absolue.
-    /// Renvoie `false` si un terme est NaN.
+    /// Compares two matrices element-wise with an absolute tolerance.
+    /// Returns `false` if an element is NaN.
     #[inline]
     pub fn approx_eq(&self, other: &Self, tol: f32) -> bool {
         let (a, b) = (&self.data, &other.data);
         (0..2).all(|i| (0..2).all(|j| (a[i][j] - b[i][j]).abs() <= tol))
     }
 
-    /// Inverse de la matrice.
+    /// Matrix inverse.
     ///
     /// # Errors
-    /// - [`MatrixError::SingularMatrix`] si `|det|` est négligeable devant
-    ///   `|ad| + |bc|` (seuil relatif, voir la doc de la crate).
-    /// - [`MatrixError::NonFiniteValue`] si la matrice contient NaN / ±∞
-    ///   ou si le calcul déborde.
+    /// - [`MatrixError::SingularMatrix`] if `|det|` is negligible compared to
+    ///   `|ad| + |bc|` (relative threshold; see the crate documentation).
+    /// - [`MatrixError::NonFiniteValue`] if the matrix contains NaN / ±∞
+    ///   or the calculation overflows.
     pub fn inv(&self) -> Result<Self, MatrixError> {
         let [[a, b], [c, d]] = self.data;
         let det = a * d - b * c;
@@ -199,7 +199,7 @@ impl Matrix2x2 {
     }
 }
 
-// ── Conversions et accès par indice ──────────────────────────
+// ── Conversions and index access ─────────────────────────────
 
 impl From<[[f32; 2]; 2]> for Matrix2x2 {
     #[inline]
@@ -215,7 +215,7 @@ impl From<Matrix2x2> for [[f32; 2]; 2] {
     }
 }
 
-/// `m[(ligne, colonne)]` : panique si hors limites.
+/// `m[(row, column)]`: panics if out of bounds.
 impl Index<(usize, usize)> for Matrix2x2 {
     type Output = f32;
     #[inline]
@@ -226,7 +226,7 @@ impl Index<(usize, usize)> for Matrix2x2 {
 
 // ── core::ops ────────────────────────────────────────────────
 
-/// `a + b` : addition terme à terme.
+/// `a + b`: element-wise addition.
 impl Add for Matrix2x2 {
     type Output = Self;
     #[inline]
@@ -235,7 +235,7 @@ impl Add for Matrix2x2 {
     }
 }
 
-/// `a - b` : soustraction terme à terme.
+/// `a - b`: element-wise subtraction.
 impl Sub for Matrix2x2 {
     type Output = Self;
     #[inline]
@@ -244,7 +244,7 @@ impl Sub for Matrix2x2 {
     }
 }
 
-/// `a * b` : produit matriciel.
+/// `a * b`: matrix multiplication.
 impl Mul for Matrix2x2 {
     type Output = Self;
     #[inline]
@@ -253,7 +253,7 @@ impl Mul for Matrix2x2 {
     }
 }
 
-/// `a * s` : multiplication par un scalaire `f32`.
+/// `a * s`: multiplication by an `f32` scalar.
 impl Mul<f32> for Matrix2x2 {
     type Output = Self;
     #[inline]
@@ -262,7 +262,7 @@ impl Mul<f32> for Matrix2x2 {
     }
 }
 
-/// `s * a` : multiplication par un scalaire `f32` à gauche.
+/// `s * a`: multiplication by an `f32` scalar on the left.
 impl Mul<Matrix2x2> for f32 {
     type Output = Matrix2x2;
     #[inline]
@@ -271,7 +271,7 @@ impl Mul<Matrix2x2> for f32 {
     }
 }
 
-/// `a * v` : matrice × vecteur colonne.
+/// `a * v`: matrix × column vector.
 impl Mul<[f32; 2]> for Matrix2x2 {
     type Output = [f32; 2];
     #[inline]
@@ -280,7 +280,7 @@ impl Mul<[f32; 2]> for Matrix2x2 {
     }
 }
 
-/// `-a` : négation terme à terme.
+/// `-a`: element-wise negation.
 impl Neg for Matrix2x2 {
     type Output = Self;
     #[inline]

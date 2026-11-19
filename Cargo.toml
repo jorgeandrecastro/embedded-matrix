@@ -1,11 +1,11 @@
 [package]
 name = "embedded-matrix"
-version = "0.3.0"
+version = "0.3.1"
 edition = "2024"
 rust-version = "1.85"
 authors = ["Jorge Andre Castro <georgeandrec@gmail.com>"]
 license = "GPL-2.0-or-later"
-description = "Matrices 2x2 et 3x3 en f32 pour systèmes embarqués no_std, sans dépendance par défaut"
+description = "2x2 and 3x3 f32 matrices for no_std embedded systems, with no default dependencies"
 repository = "https://github.com/jorgeandrecastro/embedded-matrix"
 documentation = "https://docs.rs/embedded-matrix"
 readme = "README.md"
@@ -14,7 +14,7 @@ categories = ["mathematics", "no-std", "embedded"]
 
 [features]
 default = []
-# Constructeurs de rotation (Matrix2x2::rotation, Matrix3x3::rotation_x/y/z).
+# Rotation constructors (Matrix2x2::rotation, Matrix3x3::rotation_x/y/z).
 trig = ["dep:embedded-trig-f32"]
 
 [dependencies]

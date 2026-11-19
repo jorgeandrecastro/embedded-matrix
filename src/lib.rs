@@ -1,20 +1,20 @@
 // Copyright (C) 2026 Jorge Andre Castro
 //
-// Ce programme est un logiciel libre : vous pouvez le redistribuer et/ou le modifier
-// selon les termes de la Licence Publique Générale GNU telle que publiée par la
-// Free Software Foundation, soit la version 2 de la licence, soit (à votre convention)
-// n'importe quelle version ultérieure.
+// This program is free software: you can redistribute it and/or modify it
+// under the terms of the GNU General Public License as published by the
+// Free Software Foundation, either version 2 of the License, or
+// any later version.
 
 //! # embedded-matrix
 //!
-//! Matrices 2×2 et 3×3 en `f32` pour systèmes embarqués `no_std`.
+//! 2×2 and 3×3 `f32` matrices for `no_std` embedded systems.
 //!
-//! Sans dépendance, sans `unsafe`, sans allocation.
+//! No default dependencies, no `unsafe`, and no allocation.
 //!
 //! ```rust
 //! use embedded_matrix::{Matrix2x2, Matrix3x3, MatrixError};
 //!
-//! // Produit matriciel avec l'opérateur *
+//! // Matrix multiplication with the * operator
 //! let a = Matrix3x3::new([
 //!     [1.0, 2.0, 3.0],
 //!     [4.0, 5.0, 6.0],
@@ -23,25 +23,25 @@
 //! let b = Matrix3x3::identity();
 //! assert_eq!(a * b, a);
 //!
-//! // Addition, soustraction, scalaire
+//! // Addition, subtraction, scalar multiplication
 //! assert_eq!((a + b) - b, a);
 //! let _double = a * 2.0;
 //!
-//! // Matrice × vecteur
+//! // Matrix × vector
 //! let v = Matrix2x2::identity() * [1.0, 2.0];
 //! assert_eq!(v, [1.0, 2.0]);
 //!
-//! // Inversion (Err si singulière ou non finie)
+//! // Inversion (Err if singular or non-finite)
 //! match Matrix2x2::new([[2.0, 0.0], [0.0, 4.0]]).inv() {
 //!     Ok(inv) => assert_eq!(inv, Matrix2x2::new([[0.5, 0.0], [0.0, 0.25]])),
-//!     Err(MatrixError::SingularMatrix) => { /* gérer */ }
+//!     Err(MatrixError::SingularMatrix) => { /* handle error */ }
 //!     Err(e) => panic!("{e}"),
 //! }
 //! ```
 //!
-//! ## Résolution de systèmes
+//! ## Solving systems
 //!
-//! `solve(b)` résout `A·x = b` et renvoie directement `x` :
+//! `solve(b)` solves `A·x = b` and returns `x` directly:
 //!
 //! ```rust
 //! use embedded_matrix::Matrix2x2;
@@ -51,38 +51,38 @@
 //! assert!((x[0] - 0.8).abs() < 1e-6);
 //! ```
 //!
-//! ## Feature optionnelle : `trig`
+//! ## Optional feature: `trig`
 //!
 //! ```toml
 //! embedded-matrix = { version = "0.3", features = ["trig"] }
 //! ```
 //!
-//! Active la dépendance à `embedded-trig-f32` et ajoute les constructeurs de
-//! rotation : `Matrix2x2::rotation(angle)`, `Matrix3x3::rotation_x / _y / _z(angle)`
-//! (angles en radians, règle de la main droite). Sans la feature, la crate
-//! n'a **aucune dépendance**.
+//! Enables the `embedded-trig-f32` dependency and adds rotation constructors:
+//! `Matrix2x2::rotation(angle)`, `Matrix3x3::rotation_x / _y / _z(angle)`
+//! (angles in radians, right-hand rule). Without this feature, the crate
+//! has **no dependencies**.
 //!
-//! ## Pistes futures (non implémentées)
+//! ## Future ideas (not implemented)
 //!
-//! Ces idées ne font pas partie de l'API actuelle ; elles sont notées ici
-//! pour la suite :
+//! These ideas are not part of the current API; they are noted here
+//! for the future:
 //!
-//! - **Taille quelconque** : `Matrix<const R: usize, const C: usize>` sur la
-//!   pile (alias `Matrix2x2 = Matrix<2, 2>`), produit de matrices non carrées.
-//! - **Décomposition LU** avec pivot partiel pour `det`, `inv` et `solve`
-//!   en taille n.
-//! - **Cholesky** pour les matrices symétriques définies positives
-//!   (matrices de covariance).
-//! - **Type `Vector<N>`** : produit scalaire, produit vectoriel 3D, norme.
-//! - **`#[must_use]`** sur les opérations arithmétiques.
-//! - **Benchmarks en cycles** (compteur DWT) et CI de compilation embarquée.
+//! - **Arbitrary sizes**: stack-allocated `Matrix<const R: usize, const C: usize>`
+//!   (alias `Matrix2x2 = Matrix<2, 2>`), with non-square matrix multiplication.
+//! - **LU decomposition** with partial pivoting for `det`, `inv`, and `solve`
+//!   at size n.
+//! - **Cholesky** for symmetric positive-definite matrices
+//!   (covariance matrices).
+//! - **`Vector<N>` type**: dot product, 3D cross product, norm.
+//! - **`#[must_use]`** on arithmetic operations.
+//! - **Cycle benchmarks** (DWT counter) and CI builds for embedded targets.
 //!
-//! ## Détection des matrices singulières
+//! ## Singular matrix detection
 //!
-//! `inv` compare `|det|` à une borne **relative** à la taille des termes du
-//! déterminant (et non à une constante absolue) : une matrice `1e-4 · I`
-//! reste inversible, alors qu'une matrice de grands coefficients dont le
-//! déterminant n'est que du bruit d'arrondi est correctement rejetée.
+//! `inv` compares `|det|` against a bound **relative** to the magnitude of the
+//! determinant terms (rather than an absolute constant): a `1e-4 · I` matrix
+//! remains invertible, while a matrix with large coefficients whose
+//! determinant is only rounding noise is correctly rejected.
 
 #![no_std]
 #![forbid(unsafe_code)]
@@ -96,14 +96,14 @@ pub use error::MatrixError;
 pub use matrix2x2::Matrix2x2;
 pub use matrix3x3::Matrix3x3;
 
-/// Seuil relatif : `|det| <= SINGULAR_REL * borne` ⇒ matrice singulière.
-/// `borne` est la somme des valeurs absolues des termes du déterminant.
+/// Relative threshold: `|det| <= SINGULAR_REL * bound` ⇒ singular matrix.
+/// `bound` is the sum of the absolute values of the determinant terms.
 const SINGULAR_REL: f32 = 8.0 * f32::EPSILON;
 
-/// Valide un déterminant avant inversion.
+/// Validates a determinant before inversion.
 ///
-/// `bound` : somme des valeurs absolues des termes qui composent `det`
-/// (échelle de l'erreur d'arrondi attendue sur `det`).
+/// `bound`: sum of the absolute values of the terms making up `det`
+/// (the scale of the expected rounding error in `det`).
 #[inline]
 pub(crate) fn check_det(det: f32, bound: f32) -> Result<(), MatrixError> {
     if !det.is_finite() || !bound.is_finite() {

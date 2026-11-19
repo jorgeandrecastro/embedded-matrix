@@ -1,7 +1,7 @@
 use crate::{check_det, MatrixError};
 use core::ops::{Add, AddAssign, Index, Mul, MulAssign, Neg, Sub, SubAssign};
 
-/// Matrice 3×3 en `f32`, stockée en row-major.
+/// A 3×3 `f32` matrix stored in row-major order.
 ///
 /// ```
 /// use embedded_matrix::Matrix3x3;
@@ -16,35 +16,35 @@ pub struct Matrix3x3 {
 }
 
 impl Matrix3x3 {
-    // ── Constructeurs ────────────────────────────────────────
+    // ── Constructors ─────────────────────────────────────────
 
-    /// Crée une matrice à partir d'un tableau row-major.
+    /// Creates a matrix from a row-major array.
     #[inline]
     pub const fn new(data: [[f32; 3]; 3]) -> Self {
         Self { data }
     }
 
-    /// Matrice identité.
+    /// Identity matrix.
     #[inline]
     pub const fn identity() -> Self {
         Self::new([[1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]])
     }
 
-    /// Matrice nulle.
+    /// Zero matrix.
     #[inline]
     pub const fn zero() -> Self {
         Self::new([[0.0; 3]; 3])
     }
 
-    /// Matrice diagonale.
+    /// Diagonal matrix.
     #[inline]
     pub const fn from_diagonal(d: [f32; 3]) -> Self {
         Self::new([[d[0], 0.0, 0.0], [0.0, d[1], 0.0], [0.0, 0.0, d[2]]])
     }
 
-    /// Rotation 3D autour de l'axe X (radians, règle de la main droite).
+    /// 3D rotation around the X axis (radians, right-hand rule).
     ///
-    /// Disponible avec la feature `trig` (utilise `embedded-trig-f32`).
+    /// Available with the `trig` feature (uses `embedded-trig-f32`).
     #[cfg(feature = "trig")]
     #[inline]
     pub fn rotation_x(angle: f32) -> Self {
@@ -52,9 +52,9 @@ impl Matrix3x3 {
         Self::new([[1.0, 0.0, 0.0], [0.0, c, -s], [0.0, s, c]])
     }
 
-    /// Rotation 3D autour de l'axe Y (radians, règle de la main droite).
+    /// 3D rotation around the Y axis (radians, right-hand rule).
     ///
-    /// Disponible avec la feature `trig`.
+    /// Available with the `trig` feature.
     #[cfg(feature = "trig")]
     #[inline]
     pub fn rotation_y(angle: f32) -> Self {
@@ -62,9 +62,9 @@ impl Matrix3x3 {
         Self::new([[c, 0.0, s], [0.0, 1.0, 0.0], [-s, 0.0, c]])
     }
 
-    /// Rotation 3D autour de l'axe Z (radians, règle de la main droite).
+    /// 3D rotation around the Z axis (radians, right-hand rule).
     ///
-    /// Disponible avec la feature `trig`.
+    /// Available with the `trig` feature.
     ///
     /// ```
     /// use embedded_matrix::Matrix3x3;
@@ -81,26 +81,26 @@ impl Matrix3x3 {
         Self::new([[c, -s, 0.0], [s, c, 0.0], [0.0, 0.0, 1.0]])
     }
 
-    // ── Accès ────────────────────────────────────────────────
+    // ── Access ───────────────────────────────────────────────
 
-    /// Retourne l'élément à la ligne `row` et colonne `col` (0-indexé).
+    /// Returns the element at row `row` and column `col` (zero-indexed).
     ///
     /// # Panics
-    /// Panique si `row` ou `col` vaut 3 ou plus.
+    /// Panics if `row` or `col` is 3 or greater.
     #[inline]
     pub fn get(&self, row: usize, col: usize) -> f32 {
         self.data[row][col]
     }
 
-    /// Donne accès aux données brutes row-major.
+    /// Provides access to the raw row-major data.
     #[inline]
     pub fn as_array(&self) -> &[[f32; 3]; 3] {
         &self.data
     }
 
-    // ── Opérations arithmétiques ─────────────────────────────
+    // ── Arithmetic operations ────────────────────────────────
 
-    /// Addition terme à terme.
+    /// Element-wise addition.
     #[inline]
     #[allow(clippy::should_implement_trait)]
     pub fn add(&self, rhs: &Self) -> Self {
@@ -108,7 +108,7 @@ impl Matrix3x3 {
         Self::new(core::array::from_fn(|i| core::array::from_fn(|j| a[i][j] + b[i][j])))
     }
 
-    /// Soustraction terme à terme.
+    /// Element-wise subtraction.
     #[inline]
     #[allow(clippy::should_implement_trait)]
     pub fn sub(&self, rhs: &Self) -> Self {
@@ -116,7 +116,7 @@ impl Matrix3x3 {
         Self::new(core::array::from_fn(|i| core::array::from_fn(|j| a[i][j] - b[i][j])))
     }
 
-    /// Produit matriciel standard.
+    /// Standard matrix multiplication.
     #[inline]
     #[allow(clippy::should_implement_trait)]
     pub fn mul(&self, rhs: &Self) -> Self {
@@ -126,30 +126,30 @@ impl Matrix3x3 {
         }))
     }
 
-    /// Multiplication par un scalaire.
+    /// Scalar multiplication.
     #[inline]
     pub fn scale(&self, s: f32) -> Self {
         let a = &self.data;
         Self::new(core::array::from_fn(|i| core::array::from_fn(|j| a[i][j] * s)))
     }
 
-    /// Produit matrice × vecteur colonne.
+    /// Matrix × column vector product.
     #[inline]
     pub fn mul_vec(&self, v: [f32; 3]) -> [f32; 3] {
         let a = &self.data;
         core::array::from_fn(|i| a[i][0] * v[0] + a[i][1] * v[1] + a[i][2] * v[2])
     }
 
-    // ── Propriétés ───────────────────────────────────────────
+    // ── Properties ───────────────────────────────────────────
 
-    /// Transposée.
+    /// Transpose.
     #[inline]
     pub fn transpose(&self) -> Self {
         let a = &self.data;
         Self::new(core::array::from_fn(|i| core::array::from_fn(|j| a[j][i])))
     }
 
-    /// Déterminant par développement selon la première ligne (cofacteurs).
+    /// Determinant by expansion along the first row (cofactors).
     #[inline]
     pub fn det(&self) -> f32 {
         let d = &self.data;
@@ -158,17 +158,17 @@ impl Matrix3x3 {
             + d[0][2] * (d[1][0] * d[2][1] - d[1][1] * d[2][0])
     }
 
-    /// Trace (somme des éléments diagonaux).
+    /// Trace (sum of the diagonal elements).
     #[inline]
     pub fn trace(&self) -> f32 {
         self.data[0][0] + self.data[1][1] + self.data[2][2]
     }
 
-    /// Résout le système `A·x = b`.
+    /// Solves the system `A·x = b`.
     ///
-    /// Calculé comme `A⁻¹·b` : même coût et même critère de singularité que
-    /// [`inv`](Self::inv). Si vous avez plusieurs seconds membres pour la même
-    /// matrice, calculez `inv()` une seule fois.
+    /// Computed as `A⁻¹·b`: same cost and singularity criterion as
+    /// [`inv`](Self::inv). For multiple right-hand sides with the same
+    /// matrix, compute `inv()` only once.
     ///
     /// ```
     /// use embedded_matrix::Matrix3x3;
@@ -181,9 +181,9 @@ impl Matrix3x3 {
     /// ```
     ///
     /// # Errors
-    /// - [`MatrixError::SingularMatrix`] : même critère que [`inv`](Self::inv).
-    /// - [`MatrixError::NonFiniteValue`] : NaN / ±∞ dans la matrice, dans `b`,
-    ///   ou débordement.
+    /// - [`MatrixError::SingularMatrix`]: same criterion as [`inv`](Self::inv).
+    /// - [`MatrixError::NonFiniteValue`]: NaN / ±∞ in the matrix or `b`,
+    ///   or overflow.
     pub fn solve(&self, b: [f32; 3]) -> Result<[f32; 3], MatrixError> {
         let x = self.inv()?.mul_vec(b);
         if x.iter().all(|v| v.is_finite()) {
@@ -193,33 +193,33 @@ impl Matrix3x3 {
         }
     }
 
-    /// Compare deux matrices terme à terme avec une tolérance absolue.
-    /// Renvoie `false` si un terme est NaN.
+    /// Compares two matrices element-wise with an absolute tolerance.
+    /// Returns `false` if an element is NaN.
     #[inline]
     pub fn approx_eq(&self, other: &Self, tol: f32) -> bool {
         let (a, b) = (&self.data, &other.data);
         (0..3).all(|i| (0..3).all(|j| (a[i][j] - b[i][j]).abs() <= tol))
     }
 
-    /// Inverse par la méthode des cofacteurs (matrice adjointe / déterminant).
+    /// Inverse using the cofactor method (adjugate matrix / determinant).
     ///
     /// # Errors
-    /// - [`MatrixError::SingularMatrix`] si `|det|` est négligeable devant la
-    ///   somme des valeurs absolues des termes du déterminant (seuil relatif,
-    ///   voir la doc de la crate).
-    /// - [`MatrixError::NonFiniteValue`] si la matrice contient NaN / ±∞
-    ///   ou si le calcul déborde.
+    /// - [`MatrixError::SingularMatrix`] if `|det|` is negligible compared to
+    ///   the sum of the absolute values of the determinant terms (relative
+    ///   threshold; see the crate documentation).
+    /// - [`MatrixError::NonFiniteValue`] if the matrix contains NaN / ±∞
+    ///   or the calculation overflows.
     pub fn inv(&self) -> Result<Self, MatrixError> {
         let d = &self.data;
 
-        // Cofacteurs de la première ligne : réutilisés pour le déterminant.
+        // First-row cofactors, reused for the determinant.
         let c00 = d[1][1] * d[2][2] - d[1][2] * d[2][1];
         let c01 = d[1][2] * d[2][0] - d[1][0] * d[2][2];
         let c02 = d[1][0] * d[2][1] - d[1][1] * d[2][0];
 
         let det = d[0][0] * c00 + d[0][1] * c01 + d[0][2] * c02;
 
-        // Échelle de l'erreur d'arrondi sur `det`.
+        // Scale of the rounding error in `det`.
         let bound = d[0][0].abs() * ((d[1][1] * d[2][2]).abs() + (d[1][2] * d[2][1]).abs())
             + d[0][1].abs() * ((d[1][0] * d[2][2]).abs() + (d[1][2] * d[2][0]).abs())
             + d[0][2].abs() * ((d[1][0] * d[2][1]).abs() + (d[1][1] * d[2][0]).abs());
@@ -227,7 +227,7 @@ impl Matrix3x3 {
         check_det(det, bound)?;
         let inv_det = 1.0 / det;
 
-        // Matrice adjointe (transposée de la matrice des cofacteurs) / det.
+        // Adjugate matrix (transpose of the cofactor matrix) / det.
         Ok(Self::new([
             [
                 c00 * inv_det,
@@ -248,7 +248,7 @@ impl Matrix3x3 {
     }
 }
 
-// ── Conversions et accès par indice ──────────────────────────
+// ── Conversions and index access ─────────────────────────────
 
 impl From<[[f32; 3]; 3]> for Matrix3x3 {
     #[inline]
@@ -264,7 +264,7 @@ impl From<Matrix3x3> for [[f32; 3]; 3] {
     }
 }
 
-/// `m[(ligne, colonne)]` : panique si hors limites.
+/// `m[(row, column)]`: panics if out of bounds.
 impl Index<(usize, usize)> for Matrix3x3 {
     type Output = f32;
     #[inline]
@@ -275,7 +275,7 @@ impl Index<(usize, usize)> for Matrix3x3 {
 
 // ── core::ops ────────────────────────────────────────────────
 
-/// `a + b` : addition terme à terme.
+/// `a + b`: element-wise addition.
 impl Add for Matrix3x3 {
     type Output = Self;
     #[inline]
@@ -284,7 +284,7 @@ impl Add for Matrix3x3 {
     }
 }
 
-/// `a - b` : soustraction terme à terme.
+/// `a - b`: element-wise subtraction.
 impl Sub for Matrix3x3 {
     type Output = Self;
     #[inline]
@@ -293,7 +293,7 @@ impl Sub for Matrix3x3 {
     }
 }
 
-/// `a * b` : produit matriciel.
+/// `a * b`: matrix multiplication.
 impl Mul for Matrix3x3 {
     type Output = Self;
     #[inline]
@@ -302,7 +302,7 @@ impl Mul for Matrix3x3 {
     }
 }
 
-/// `a * s` : multiplication par un scalaire `f32`.
+/// `a * s`: multiplication by an `f32` scalar.
 impl Mul<f32> for Matrix3x3 {
     type Output = Self;
     #[inline]
@@ -311,7 +311,7 @@ impl Mul<f32> for Matrix3x3 {
     }
 }
 
-/// `s * a` : multiplication par un scalaire `f32` à gauche.
+/// `s * a`: multiplication by an `f32` scalar on the left.
 impl Mul<Matrix3x3> for f32 {
     type Output = Matrix3x3;
     #[inline]
@@ -320,7 +320,7 @@ impl Mul<Matrix3x3> for f32 {
     }
 }
 
-/// `a * v` : matrice × vecteur colonne.
+/// `a * v`: matrix × column vector.
 impl Mul<[f32; 3]> for Matrix3x3 {
     type Output = [f32; 3];
     #[inline]
@@ -329,7 +329,7 @@ impl Mul<[f32; 3]> for Matrix3x3 {
     }
 }
 
-/// `-a` : négation terme à terme.
+/// `-a`: element-wise negation.
 impl Neg for Matrix3x3 {
     type Output = Self;
     #[inline]
