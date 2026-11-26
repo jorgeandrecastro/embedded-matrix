@@ -20,7 +20,7 @@ Version 0.3 adds `solve` (solving `A·x = b`) and, behind the optional `trig` fe
 
 ```toml
 [dependencies]
-embedded-matrix = "0.3"
+embedded-matrix = "0.4"
 ```
 
 Minimum Rust version: **1.85** (2024 edition).
@@ -29,7 +29,7 @@ Minimum Rust version: **1.85** (2024 edition).
 
 ```toml
 [dependencies]
-embedded-matrix = { version = "0.3", features = ["trig"] }
+embedded-matrix = { version = "0.4", features = ["trig"] }
 ```
 
 Enables the [`embedded-trig-f32`](https://crates.io/crates/embedded-trig-f32) dependency and rotation constructors (angles in radians, right-hand rule). **Without this feature, the crate has no dependencies.**
@@ -213,8 +213,16 @@ Intentionally outside the current API, to keep the crate simple and predictable:
 - **`#[must_use]`** on arithmetic operations.
 - **Cycle benchmarks** (DWT counter on Cortex-M) and CI builds for embedded targets.
 
-## License
+## 🛡️ License
 
-GPL-2.0-or-later
+Licensed under either of:
 
-Copyright (C) 2026 Jorge Andre Castro.
+    MIT license (http://opensource.org/licenses/MIT)
+
+    Apache License, Version 2.0 (http://www.apache.org/licenses/LICENSE-2.0)
+
+at your option.
+
+## 🦅 About
+
+Developed by Jorge Andre Castro.

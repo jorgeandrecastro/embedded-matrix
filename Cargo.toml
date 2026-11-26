@@ -1,10 +1,10 @@
 [package]
 name = "embedded-matrix"
-version = "0.3.1"
+version = "0.4.0"
 edition = "2024"
-rust-version = "1.85"
+rust-version = "1.95"
 authors = ["Jorge Andre Castro <georgeandrec@gmail.com>"]
-license = "GPL-2.0-or-later"
+license = "MIT OR Apache-2.0"
 description = "2x2 and 3x3 f32 matrices for no_std embedded systems, with no default dependencies"
 repository = "https://github.com/jorgeandrecastro/embedded-matrix"
 documentation = "https://docs.rs/embedded-matrix"
@@ -18,7 +18,7 @@ default = []
 trig = ["dep:embedded-trig-f32"]
 
 [dependencies]
-embedded-trig-f32 = { version = "0.3", optional = true }
+embedded-trig-f32 = { version = "0.4", optional = true }
 
 [package.metadata.docs.rs]
 all-features = true
